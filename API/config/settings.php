@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 $dbHost = '127.0.0.1';
 $dbPort = '3306';
-$dbName = '';
+$dbName = 'magazzino';
 $dbCharset = 'utf8mb4';
 
 $dsn = sprintf(
@@ -18,7 +18,7 @@ $dsn = sprintf(
 return [
     'db' => [
         'dsn' => $dsn,
-        'user' => '',
-        'pass' => '',
+        'user' => 'utente_phpmyadmin',
+        'pass' => 'password_sicura',
     ],
 ];

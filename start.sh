@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
 sudo service apache2 start
 sudo service mariadb start
 
-set -euo pipefail
-
 cd "$(dirname "$0")"
 
-/usr/bin/php -S localhost:8000 -t frontend/public
-/usr/bin/php -S localhost:8000 -t API/public
+trap 'kill 0' SIGINT SIGTERM EXIT
+
+/usr/bin/php -S localhost:8080 -t frontend/public &
+/usr/bin/php -S localhost:8000 -t API/public &
+
+wait

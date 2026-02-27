@@ -45,5 +45,24 @@ Nota: phpMyAdmin è l'interfaccia web; il database usato dall'app è MySQL/Maria
 - `GET /` (lista delle 10 query)
 - `GET /{id}` con `id` da 1 a 10
 
+### Paginazione e ordinamento
+
+L'endpoint `GET /{id}` accetta parametri di query per paginare e ordinare i risultati e restituisce i metadati di paginazione. Se non passi nessun parametro, restituisce tutte le righe (nessuna paginazione).
+
+Parametri (se almeno uno e' presente, la paginazione si attiva con default):
+- `page` (default `1`): numero di pagina, min 1
+- `pageSize` (default `10`, max `200`): righe per pagina
+- `orderBy` (opzionale): colonna su cui ordinare (validata con whitelist per query)
+- `orderDir` (default `ASC`): `ASC` o `DESC`
+
+Risposta:
+- `results`: array di righe della query
+- `pagination`: `{ page, pageSize, total, totalPages }`
+
+Esempi:
+- `http://localhost:8080/5?page=2&pageSize=10&orderBy=fid&orderDir=DESC`
+- `http://localhost:8080/1?page=1&pageSize=25`
+- `http://localhost:8080/1` (tutte le righe, senza paginazione)
+
 Esempio:
 - `http://localhost:8080/1`
