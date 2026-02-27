@@ -306,10 +306,11 @@ final class ExerciseRepository
         return $items;
     }
 
-    /** @return array{query:string,rows:array<int,array<string,mixed>>,pagination:array{page:int,pageSize:int,total:int,totalPages:int}} */
+    /** @return array{description:string,query:string,rows:array<int,array<string,mixed>>,pagination:array{page:int,pageSize:int,total:int,totalPages:int}} */
     public function runQuery(int $id, ?int $page, ?int $pageSize, ?string $orderBy, ?string $orderDir): array
     {
         $query = self::QUERIES[$id] ?? null;
+        $description = self::DESCRIPTIONS[$id] ?? null;
 
         if ($query === null) {
             throw new InvalidArgumentException('Query non valida. Usa un id da 1 a 10.');
@@ -364,6 +365,7 @@ final class ExerciseRepository
         $rows = $statement->fetchAll();
 
         return [
+            'description' => $description,
             'query' => $paginatedQuery,
             'rows' => $rows,
             'pagination' => [

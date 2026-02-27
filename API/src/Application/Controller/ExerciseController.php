@@ -69,6 +69,7 @@ final class ExerciseController
             $result = $this->repository->runQuery($queryId, $page, $pageSize, $orderBy, $orderDir);
 
             return $this->json($response, [
+                'description' => $result['description'],
                 'results' => $result['rows'],
                 'pagination' => $result['pagination'],
             ]);
