@@ -1,4 +1,6 @@
 const queryId = window.location.pathname.split('/').pop();
+const API_BASE_URL = window.APP_API_BASE_URL;
+const DETAIL_STORAGE_KEY = 'selectedSearchDetail';
 
 const urlParams = new URLSearchParams(window.location.search);
 let currentPage = Math.max(1, Number(urlParams.get('page')) || 1);
@@ -9,6 +11,7 @@ let currentOrderBy = urlParams.get('orderBy') || '';
 let currentOrderDir = (urlParams.get('orderDir') || 'asc').toLowerCase() === 'desc' ? 'desc' : 'asc';
 let currentResults = [];
 let currentTotalPages = 0;
+let hasAppliedInitialDefaultSort = false;
 
 function updateUrlAndFetch() {
     const params = new URLSearchParams(window.location.search);
@@ -17,7 +20,11 @@ function updateUrlAndFetch() {
 
     if (currentOrderBy) {
         params.set('orderBy', currentOrderBy);
-        params.set('orderDir', currentOrderDir);
+        if (currentOrderDir === 'desc') {
+            params.set('orderDir', 'desc');
+        } else {
+            params.delete('orderDir');
+        }
     } else {
         params.delete('orderBy');
         params.delete('orderDir');
@@ -44,7 +51,7 @@ function setupSortControls(columns) {
     const sortDirectionEl = document.getElementById('sort-direction');
 
     if (!sortColumnEl || !sortDirectionEl) {
-        return;
+        return false;
     }
 
     sortColumnEl.innerHTML = '<option value="">Seleziona colonna</option>';
@@ -59,8 +66,21 @@ function setupSortControls(columns) {
     if (currentOrderBy && columns.includes(currentOrderBy)) {
         sortColumnEl.value = currentOrderBy;
     } else {
-        currentOrderBy = '';
-        sortColumnEl.value = '';
+        if (columns.length > 0) {
+            currentOrderBy = columns[0];
+            currentOrderDir = 'asc';
+            sortColumnEl.value = currentOrderBy;
+
+            if (!hasAppliedInitialDefaultSort) {
+                hasAppliedInitialDefaultSort = true;
+                currentPage = 1;
+                updateUrlAndFetch();
+                return true;
+            }
+        } else {
+            currentOrderBy = '';
+            sortColumnEl.value = '';
+        }
     }
 
     sortDirectionEl.value = currentOrderDir;
@@ -74,6 +94,8 @@ function setupSortControls(columns) {
 
     sortColumnEl.onchange = onSortChange;
     sortDirectionEl.onchange = onSortChange;
+
+    return false;
 }
 
 function setupPageSizeControl() {
@@ -99,6 +121,11 @@ function setupPageSizeControl() {
 }
 
 async function fetchQueryData() {
+    if (!API_BASE_URL) {
+        document.getElementById('error').innerText = 'Configurazione API mancante. Controlla /js/config.js.';
+        return;
+    }
+
     const params = new URLSearchParams({
         page: String(currentPage),
         pageSize: String(currentPageSize)
@@ -106,10 +133,12 @@ async function fetchQueryData() {
 
     if (currentOrderBy) {
         params.set('orderBy', currentOrderBy);
-        params.set('orderDir', currentOrderDir.toUpperCase());
+        if (currentOrderDir === 'desc') {
+            params.set('orderDir', 'DESC');
+        }
     }
 
-    const apiUrl = `https://redesigned-space-spoon-q774x7xvq4rqh5rq-8000.app.github.dev/${queryId}?${params.toString()}`;
+    const apiUrl = `${API_BASE_URL}/${queryId}?${params.toString()}`;
     
     try {
         const response = await fetch(apiUrl);
@@ -130,7 +159,10 @@ async function fetchQueryData() {
         }
 
         setupPageSizeControl();
-        setupSortControls(detectColumns(currentResults));
+        const shouldStopCurrentRender = setupSortControls(detectColumns(currentResults));
+        if (shouldStopCurrentRender) {
+            return;
+        }
         renderTable({ results: currentResults });
         renderPagination(currentTotalPages);
     } catch (e) {
@@ -149,6 +181,52 @@ function goToPage(newPage) {
 
     currentPage = newPage;
     updateUrlAndFetch();
+}
+
+function getDetailPagePath(tableName) {
+    const normalized = String(tableName || '').trim().toLowerCase();
+
+    if (normalized === 'fornitori') return '/fornitore';
+    if (normalized === 'pezzi') return '/pezzo';
+    if (normalized === 'catalogo') return '/catalogo';
+
+    return null;
+}
+
+async function openSearchDetail(columnName, value) {
+    if (!API_BASE_URL) {
+        document.getElementById('error').innerText = 'Configurazione API mancante. Controlla /js/config.js.';
+        return;
+    }
+
+    const errorEl = document.getElementById('error');
+    errorEl.innerText = '';
+
+    const params = new URLSearchParams({
+        column: String(columnName),
+        value: String(value)
+    });
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/search?${params.toString()}`);
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const detail = await response.json();
+        const targetPath = getDetailPagePath(detail.table);
+
+        if (!targetPath || !detail.row) {
+            throw new Error('Risposta dettaglio non valida');
+        }
+
+        sessionStorage.setItem(DETAIL_STORAGE_KEY, JSON.stringify(detail));
+        window.location.href = targetPath;
+    } catch (error) {
+        console.error('Errore durante il recupero dettaglio:', error);
+        errorEl.innerText = 'Impossibile recuperare i dettagli del record selezionato.';
+    }
 }
 
 // genera le righe della tabella a partire dai dati restituiti dall'API
@@ -178,7 +256,15 @@ function renderTable(data) {
         const tr = document.createElement('tr');
         columns.forEach(col => {
             const td = document.createElement('td');
-            td.textContent = row[col];
+
+            const value = row[col];
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'btn btn-link p-0 align-baseline';
+            button.textContent = value == null ? '-' : String(value);
+            button.addEventListener('click', () => openSearchDetail(col, value));
+
+            td.appendChild(button);
             tr.appendChild(td);
         });
         tableBody.appendChild(tr);

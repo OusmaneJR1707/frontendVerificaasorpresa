@@ -9,22 +9,31 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 
 class frontendController
 {
+    private function renderTemplate(Response $response, string $templateName, array $replacements = []): Response
+    {
+        $path = __DIR__ . '/../../../templates/' . $templateName;
+
+        if (!file_exists($path)) {
+            $response->getBody()->write("Errore: File {$templateName} non trovato in {$path}");
+            return $response->withStatus(404);
+        }
+
+        $html = file_get_contents($path);
+
+        foreach ($replacements as $placeholder => $value) {
+            $html = str_replace($placeholder, (string) $value, $html);
+        }
+
+        $response->getBody()->write($html);
+        return $response;
+    }
+
     /**
      * Carica la homepage con l'elenco delle 10 query.
      */
     public function homepage(Request $request, Response $response): Response
     {
-        // Costruiamo il percorso assoluto verso la cartella templates
-        $path = __DIR__ . '\..\..\..\templates\index.html';
-        
-        if (!file_exists($path)) {
-            $response->getBody()->write("Errore: File index.html non trovato in $path");
-            return $response->withStatus(404);
-        }
-
-        $html = file_get_contents($path);
-        $response->getBody()->write($html);
-        return $response;
+        return $this->renderTemplate($response, 'index.html');
     }
 
     /**
@@ -32,23 +41,25 @@ class frontendController
      */
     public function querypage(Request $request, Response $response, array $args): Response
     {
-        // L'ID viene catturato dalla rotta {id:[0-9]+} definita in routes.php
         $queryId = $args['id'];
 
-        $path = __DIR__ . '/../../../templates/query_view.html';
+        return $this->renderTemplate($response, 'query_view.html', [
+            '{{QUERY_ID}}' => $queryId,
+        ]);
+    }
 
-        if (!file_exists($path)) {
-            $response->getBody()->write("Errore: File query_view.html non trovato.");
-            return $response->withStatus(404);
-        }
+    public function supplierpage(Request $request, Response $response): Response
+    {
+        return $this->renderTemplate($response, 'supplier_view.html');
+    }
 
-        $html = file_get_contents($path);
-        
-        // Opzionale: se non usi un motore di template (come Twig), 
-        // puoi fare un semplice rimpiazzo di una stringa per passare l'ID al JS
-        $html = str_replace('{{QUERY_ID}}', $queryId, $html);
+    public function productpage(Request $request, Response $response): Response
+    {
+        return $this->renderTemplate($response, 'product_view.html');
+    }
 
-        $response->getBody()->write($html);
-        return $response;
+    public function catalogpage(Request $request, Response $response): Response
+    {
+        return $this->renderTemplate($response, 'catalog_view.html');
     }
 }
