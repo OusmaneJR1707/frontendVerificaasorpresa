@@ -7,4 +7,5 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
-/usr/bin/php -S localhost:8000 -t public
+/usr/bin/php -S localhost:8000 -t frontend/public
+/usr/bin/php -S localhost:8000 -t API/public
