@@ -49,9 +49,9 @@ Nota: phpMyAdmin è l'interfaccia web; il database usato dall'app è MySQL/Maria
 
 L'endpoint `GET /{id}` accetta parametri di query per paginare e ordinare i risultati e restituisce i metadati di paginazione. Se non passi nessun parametro, restituisce tutte le righe (nessuna paginazione).
 
-Parametri (se almeno uno e' presente, la paginazione si attiva con default):
+Parametri (se almeno uno è presente, la paginazione si attiva con default):
 - `page` (default `1`): numero di pagina, min 1
-- `pageSize` (default `10`, max `200`): righe per pagina
+- `pageSize` (default `10`, max `200`): righe per pagina; usa `all` per ottenere tutte le righe
 - `orderBy` (opzionale): colonna su cui ordinare (validata con whitelist per query)
 - `orderDir` (default `ASC`): `ASC` o `DESC`
 
@@ -64,5 +64,20 @@ Esempi:
 - `http://localhost:8080/1?page=1&pageSize=25`
 - `http://localhost:8080/1` (tutte le righe, senza paginazione)
 
-Esempio:
-- `http://localhost:8080/1`
+### Ricerca per colonna/valore
+
+L'endpoint `GET /search?column=columnName&value=value` cerca una riga per colonna e valore in tutte le tabelle (Pezzi, Fornitori, Catalogo) e restituisce la prima riga trovata insieme al nome della tabella.
+
+Parametri:
+- `column` (obbligatorio): nome della colonna da cercare (validato contro whitelist)
+- `value` (obbligatorio): valore della colonna
+
+Risposte:
+- `200`: `{ table, row }` - tabella trovata e la riga completa
+- `404`: `{ error }` - nessun risultato trovato
+- `400`: `{ error }` - parametri mancanti
+
+Esempi:
+- `http://localhost:8080/search?column=pnome&value=Vite`
+- `http://localhost:8080/search?column=fnome&value=Acme`
+- `http://localhost:8080/search?column=fid&value=1`

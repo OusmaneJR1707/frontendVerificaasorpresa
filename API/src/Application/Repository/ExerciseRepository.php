@@ -374,4 +374,42 @@ final class ExerciseRepository
             ],
         ];
     }
+
+    /**
+     * Cerca una riga per colonna e valore su tutte le tabelle disponibili.
+     * Restituisce la prima riga trovata insieme al nome della tabella.
+     *
+     * @return array{table:string,row:array<string,mixed>>|null
+     */
+    public function searchByColumnValue(string $column, string $value): ?array
+    {
+        // Whitelist di tabelle e colonne ricercabili per prevenire SQL injection.
+        $tables = [
+            'Pezzi' => ['pid', 'pnome', 'colore'],
+            'Fornitori' => ['fid', 'fnome', 'indirizzo'],
+            'Catalogo' => ['fid', 'pid', 'costo'],
+        ];
+
+        foreach ($tables as $tableName => $columns) {
+            // Valida che la colonna esista nella tabella.
+            if (!in_array($column, $columns, true)) {
+                continue;
+            }
+
+            // Usa prepared statement per il valore (sicurezza).
+            $query = sprintf('SELECT * FROM %s WHERE %s = ? LIMIT 1', $tableName, $column);
+            $statement = $this->pdo->prepare($query);
+            $statement->execute([$value]);
+            $row = $statement->fetch();
+
+            if ($row !== false) {
+                return [
+                    'table' => $tableName,
+                    'row' => $row,
+                ];
+            }
+        }
+
+        return null;
+    }
 }

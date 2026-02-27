@@ -42,14 +42,21 @@ final class ExerciseController
         if ($hasPaginationParams) {
             // Parametri di paginazione/ordinamento dal frontend (con default sensati).
             $page = isset($params['page']) ? (int) $params['page'] : 1;
-            $pageSize = isset($params['pageSize']) ? (int) $params['pageSize'] : 10;
+            
+            // Se pageSize è 'all', restituisce tutte le righe senza paginazione.
+            if (isset($params['pageSize']) && strtolower((string) $params['pageSize']) === 'all') {
+                $pageSize = null;
+            } else {
+                $pageSize = isset($params['pageSize']) ? (int) $params['pageSize'] : 10;
+                
+                // Limite massimo per evitare richieste troppo pesanti.
+                if ($pageSize > 200) {
+                    $pageSize = 200;
+                }
+            }
+            
             $orderBy = isset($params['orderBy']) ? (string) $params['orderBy'] : null;
             $orderDir = isset($params['orderDir']) ? (string) $params['orderDir'] : 'ASC';
-
-            // Limite massimo per evitare richieste troppo pesanti.
-            if ($pageSize > 200) {
-                $pageSize = 200;
-            }
         } else {
             // Nessun parametro: restituisce tutto senza paginazione.
             $page = null;
@@ -72,6 +79,39 @@ final class ExerciseController
         } catch (Throwable $exception) {
             return $this->json($response, [
                 'error' => 'Errore durante l\'esecuzione query',
+                'details' => $exception->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function search(Request $request, Response $response): Response
+    {
+        $params = $request->getQueryParams();
+        $column = isset($params['column']) ? (string) $params['column'] : null;
+        $value = isset($params['value']) ? (string) $params['value'] : null;
+
+        if (!$column || !$value) {
+            return $this->json($response, [
+                'error' => 'Parametri mancanti: column e value sono obbligatori',
+            ], 400);
+        }
+
+        try {
+            $result = $this->repository->searchByColumnValue($column, $value);
+
+            if ($result === null) {
+                return $this->json($response, [
+                    'error' => 'Nessun risultato trovato',
+                ], 404);
+            }
+
+            return $this->json($response, [
+                'table' => $result['table'],
+                'row' => $result['row'],
+            ]);
+        } catch (Throwable $exception) {
+            return $this->json($response, [
+                'error' => 'Errore durante la ricerca',
                 'details' => $exception->getMessage(),
             ], 500);
         }
