@@ -14,6 +14,32 @@
 
         <div id="error" class="text-danger mb-3"></div>
 
+        <div class="row g-2 align-items-end mb-3">
+            <div class="col-12 col-md-4">
+                <label for="sort-column" class="form-label">Ordina per</label>
+                <select id="sort-column" class="form-select">
+                    <option value="">Seleziona colonna</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-3">
+                <label for="sort-direction" class="form-label">Direzione</label>
+                <select id="sort-direction" class="form-select">
+                    <option value="asc">Crescente (A-Z / 0-9)</option>
+                    <option value="desc">Decrescente (Z-A / 9-0)</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-3">
+                <label for="page-size" class="form-label">Risultati per pagina</label>
+                <select id="page-size" class="form-select">
+                    <option value="5">5</option>
+                    <option value="10">10</option>
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                    <option value="all">Tutti i risultati</option>
+                </select>
+            </div>
+        </div>
+
         <div class="table-responsive">
             <table class="table table-striped">
                 <thead>
