@@ -260,6 +260,33 @@ final class ExerciseRepository
         "
     ];
 
+    private const ORDERABLE_COLUMNS = [
+        1 => ['pnome'],
+        2 => ['fnome'],
+        3 => ['fnome'],
+        4 => ['pnome'],
+        5 => ['fid'],
+        6 => ['pnome', 'fnome'],
+        7 => ['fid'],
+        8 => ['fid'],
+        9 => ['fid'],
+        10 => ['pid'],
+    ];
+
+    /** @var array<int, list<string>> */
+    private const DEFAULT_ORDER = [
+        1 => ['pnome'],
+        2 => ['fnome'],
+        3 => ['fnome'],
+        4 => ['pnome'],
+        5 => ['fid'],
+        6 => ['pnome', 'fnome'],
+        7 => ['fid'],
+        8 => ['fid'],
+        9 => ['fid'],
+        10 => ['pid'],
+    ];
+
     public function __construct(private PDO $pdo)
     {
     }
@@ -279,8 +306,8 @@ final class ExerciseRepository
         return $items;
     }
 
-    /** @return array{query:string,rows:array<int,array<string,mixed>>} */
-    public function runQuery(int $id): array
+    /** @return array{query:string,rows:array<int,array<string,mixed>>,pagination:array{page:int,pageSize:int,total:int,totalPages:int}} */
+    public function runQuery(int $id, ?int $page, ?int $pageSize, ?string $orderBy, ?string $orderDir): array
     {
         $query = self::QUERIES[$id] ?? null;
 
@@ -288,11 +315,63 @@ final class ExerciseRepository
             throw new InvalidArgumentException('Query non valida. Usa un id da 1 a 10.');
         }
 
-        $statement = $this->pdo->query($query);
+        $usePagination = $page !== null && $pageSize !== null;
+
+        // Normalizza input pagina/dimensione e calcola offset per LIMIT/OFFSET.
+        $safePage = $usePagination ? max(1, $page) : 1;
+        $safePageSize = $usePagination ? max(1, $pageSize) : 0;
+        $offset = $usePagination ? (($safePage - 1) * $safePageSize) : 0;
+
+        // Valida orderBy contro whitelist per evitare SQL injection.
+        $allowedColumns = self::ORDERABLE_COLUMNS[$id] ?? [];
+        $safeOrderDir = strtoupper((string) $orderDir) === 'DESC' ? 'DESC' : 'ASC';
+        $safeOrderBy = null;
+
+        if ($orderBy !== null && in_array($orderBy, $allowedColumns, true)) {
+            $safeOrderBy = $orderBy;
+        }
+
+        // Se l'orderBy non e' valido, usa l'ordine di default della query.
+        if ($safeOrderBy === null) {
+            $defaultOrder = self::DEFAULT_ORDER[$id] ?? [];
+            if ($defaultOrder !== []) {
+                $safeOrderBy = implode(', ', $defaultOrder);
+                $safeOrderDir = 'ASC';
+            }
+        }
+
+        // Conta le righe totali su una subquery, cosi' la logica e' identica alla query base.
+        $countQuery = sprintf('SELECT COUNT(*) AS total FROM (%s) q', $query);
+        $countStatement = $this->pdo->query($countQuery);
+        $total = (int) ($countStatement->fetchColumn() ?: 0);
+        if (!$usePagination) {
+            // Nessuna paginazione: una sola pagina con tutte le righe.
+            $safePageSize = $total;
+            $totalPages = $total === 0 ? 0 : 1;
+        } else {
+            $totalPages = $total === 0 ? 0 : (int) ceil($total / $safePageSize);
+        }
+
+        // Applica ordine e paginazione su una subquery per non modificare le query originali.
+        $paginatedQuery = sprintf('SELECT * FROM (%s) q', $query);
+        if ($safeOrderBy !== null) {
+            $paginatedQuery .= sprintf(' ORDER BY %s %s', $safeOrderBy, $safeOrderDir);
+        }
+        if ($usePagination) {
+            $paginatedQuery .= sprintf(' LIMIT %d OFFSET %d', $safePageSize, $offset);
+        }
+        $statement = $this->pdo->query($paginatedQuery);
         $rows = $statement->fetchAll();
 
         return [
+            'query' => $paginatedQuery,
             'rows' => $rows,
+            'pagination' => [
+                'page' => $safePage,
+                'pageSize' => $safePageSize,
+                'total' => $total,
+                'totalPages' => $totalPages,
+            ],
         ];
     }
 }

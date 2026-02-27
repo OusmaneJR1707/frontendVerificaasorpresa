@@ -33,12 +33,37 @@ final class ExerciseController
     public function runQuery(Request $request, Response $response, array $args): Response
     {
         $queryId = (int) ($args['id'] ?? 0);
+        $params = $request->getQueryParams();
+        $hasPaginationParams = array_key_exists('page', $params)
+            || array_key_exists('pageSize', $params)
+            || array_key_exists('orderBy', $params)
+            || array_key_exists('orderDir', $params);
+
+        if ($hasPaginationParams) {
+            // Parametri di paginazione/ordinamento dal frontend (con default sensati).
+            $page = isset($params['page']) ? (int) $params['page'] : 1;
+            $pageSize = isset($params['pageSize']) ? (int) $params['pageSize'] : 10;
+            $orderBy = isset($params['orderBy']) ? (string) $params['orderBy'] : null;
+            $orderDir = isset($params['orderDir']) ? (string) $params['orderDir'] : 'ASC';
+
+            // Limite massimo per evitare richieste troppo pesanti.
+            if ($pageSize > 200) {
+                $pageSize = 200;
+            }
+        } else {
+            // Nessun parametro: restituisce tutto senza paginazione.
+            $page = null;
+            $pageSize = null;
+            $orderBy = null;
+            $orderDir = null;
+        }
 
         try {
-            $result = $this->repository->runQuery($queryId);
+            $result = $this->repository->runQuery($queryId, $page, $pageSize, $orderBy, $orderDir);
 
             return $this->json($response, [
                 'results' => $result['rows'],
+                'pagination' => $result['pagination'],
             ]);
         } catch (InvalidArgumentException $exception) {
             return $this->json($response, [
