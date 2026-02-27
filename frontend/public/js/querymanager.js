@@ -13,6 +13,15 @@ let currentResults = [];
 let currentTotalPages = 0;
 let hasAppliedInitialDefaultSort = false;
 
+function setQuerySubtitle(text) {
+    const subtitleEl = document.getElementById('query-subtitle');
+    if (!subtitleEl) {
+        return;
+    }
+
+    subtitleEl.textContent = text;
+}
+
 function updateUrlAndFetch() {
     const params = new URLSearchParams(window.location.search);
     params.set('page', String(currentPage));
@@ -148,6 +157,8 @@ async function fetchQueryData() {
         }
 
         const data = await response.json();
+        const description = typeof data?.description === 'string' ? data.description.trim() : '';
+        setQuerySubtitle(description || 'Descrizione query non disponibile.');
 
         const results = data.results || data;
         currentResults = Array.isArray(results) ? results : [];
